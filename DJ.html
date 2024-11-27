@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drum Machine</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #1a1a1a;
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            text-align: center;
+            padding: 2rem;
+            background-color: #f0e9e9;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+            position: relative;
+        }
+        .Btn {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #b718bd;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        #stopLoopBtn {
+            background-color: #cc0000;
+        }
+        .controls {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="drum-interface">
+            <div class="controls">
+                <button id="stopLoopBtn" class="Btn"> ⏹ Stop Loops </button>
+                <button id="blbtn" class="Btn">⏹ intro loop </button>
+                <button id="melodyBtn" class="Btn"> ⏹ melody loop </button>
+            </div>
+            <div> <input type="range" min="-10" max="10" value="0" id="meloSlider"> volume melody loop</div>
+            <div> <input type="range" min="-10" max="10" value="0" id="introSlider">  volume intro loop</div>
+        </div>
+    </div>
+
+    <script>
+        Tone.start();
+
+        // Create players
+        let players = new Tone.Players({
+            kick: "kick.mp3",
+            hit: "hihat.mp3",
+            snare: "snare.mp3",
+            clap: "clap-010.wav",
+        }).toDestination(); 
+
+        //loops object will be stack in here 
+        currentLoops = [];
+
+        //to access sliders' values s
+        let meloSlider = document.getElementById("meloSlider");
+        let introSlider = document.getElementById("introSlider");
+
+
+        //different loops functions 
+        function beatLoop() {
+            Tone.Transport.start()
+            let loop = new Tone.Loop((time) => {
+
+                players.volume.setTargetAtTime(introSlider.value, time, 0.5);
+
+                players.player("kick").start(time)
+                players.player("clap").start(time + 0.5)
+                // console.log(time)
+
+            }, 1).start(Tone.Transport.time);
+            currentLoops.push(loop)
+        };
+
+
+        function melodyLoop() {
+            Tone.Transport.start()
+            
+            let synth = new Tone.PolySynth(Tone.Synth).toDestination();
+            const reverb = new Tone.Reverb({ decay: 2 }).toDestination();
+            synth.connect(reverb);
+            
+            const chords = {
+                Gmin2: ["D4", "G4", "Bb4"],
+                Dmin: ["D4","F4", "A4" ],
+                Gmin1: ["Bb3","D4", "G4"],
+            };
+
+            const rhythm = [["Gmin2",2], ["Dmin", 2], ["Gmin1", 3], ["Gmin1", 2], ["Dmin", 2], ["Gmin2",3]]
+
+        
+            const duration = 0.125; 
+            delayRate = 0.25
+            delay = 0;
+
+            let loop = new Tone.Loop((time) => {
+
+                synth.volume.setTargetAtTime(meloSlider.value, time, 1);
+
+                rhythm.forEach((tuple) => { 
+                    repeat = tuple[1]
+                    
+                    if (repeat === 3) {
+                        synth.triggerAttackRelease(chords[tuple[0]], duration + 0.5, time + delay);
+                        delay += ((duration + 0.5) + delayRate)
+                        repeat -= 1;
+                    }
+
+                    for (i = 0; i < repeat; i++) {
+                        synth.triggerAttackRelease(chords[tuple[0]], duration, time + delay);
+                        delay += (duration + delayRate)
+                    }
+                });
+                delay = 0;
+            }, 14 * (duration + delayRate) + 2 * (0.5) ).start(Tone.Transport.time);
+
+            currentLoops.push(loop)
+        }
+        
+        
+        //in order to stop everything
+        function stopLoops() {
+            currentLoops.forEach(loop => { 
+                loop.dispose();
+            })
+            Tone.Transport.stop();
+            Tone.Transport.cancel();
+        }
+        
+        //linking button to their concerned functions
+        document.getElementById('melodyBtn').addEventListener('click', melodyLoop);
+        document.getElementById('blbtn').addEventListener('click', beatLoop);
+        document.getElementById('stopLoopBtn').addEventListener('click', stopLoops);
+
+       
+    </script>
+</body>
+</html>
